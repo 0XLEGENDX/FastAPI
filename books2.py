@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body, Path, Query
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -24,11 +24,27 @@ class Book:
 
 
 class BookRequest(BaseModel):
-    id: Optional[int] = None
+    id: Optional[int] = Field(description="ID is not needed on create", default=None)
     title: str = Field(min_length=1, max_length=100)
     author: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=100)
     rating: int = Field(gt=-1,lt=6)
+
+
+    model_config = {
+
+        "json_schema_extra" : {
+
+            "example" : {
+
+                "title": "A new book",
+                "author": "codingwithanurag",
+                "description": "A new description of a book",
+                "rating": 5
+            }
+
+        }
+    } 
 
 
 
@@ -55,6 +71,61 @@ async def create_book(book_request: BookRequest):
     new_book = Book(**book_request.model_dump())
     BOOKS.append( find_book_id(new_book) )
     return {"message": "success"}
+
+
+@app.get("/books/{book_id}")
+async def read_book(book_id: int = Path(gt=0)):
+    books_list = []
+    for book in BOOKS:
+        if book.id == book_id:
+            books_list.append(book)
+    
+    return books_list
+
+
+@app.get("/books/")
+async def read_book_by_rating(rating: int = Query(gt=0,lt=6)):
+
+    books_list = []
+    for book in BOOKS:
+        if(book.rating == rating):
+            books_list.append(book)
+    
+    return books_list
+
+@app.put("/books/update_book")
+async def update_book(book_json: BookRequest):
+
+    book_json = Book(**book_json.model_dump())
+
+    for index, book in enumerate(BOOKS):
+
+        if(book.id == book_json.id):
+
+            BOOKS[index] = book_json
+        
+    return {"message" : "success"}
+
+
+@app.delete("/books/{book_id}")
+async def delte_book_by_book_id(book_id: int):
+
+    # items_to_delete = []
+    flag = False
+    for index, item in enumerate(BOOKS):
+
+        if(item.id == book_id):
+            flag = True
+            BOOKS.pop(index)
+            break
+        
+    response = {"status" : flag} 
+    if(not flag):
+        response["message"] = "Book not found"
+    return response
+
+        
+            
 
 
 
